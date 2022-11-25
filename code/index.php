@@ -1,20 +1,13 @@
 <html>
 <?php
-
-require_once "vendor/autoload.php";
-
-$client = new Google_Client();
-$client->setApplicationName('google sheets');
-$client->setScopes(Google_Service_Sheets::SPREADSHEETS);
-$client->setAuthConfig('credentials.json');
-$service = new Google_Service_Sheets($client);
-$id = "1-C3XM2VeUSbTv_ByQEuAb023kFHLhg3EqaW0BkrFnDg";
-
-$range = "data!A1:D1";
-$valueRange = new Google_Service_Sheets_ValueRange();
-$valueRange->setValues(["values" => ["title", "text", "email", "category"]]);
-$params = ["valueInputOption" => "RAW"];
-$service->spreadsheets_values->update($id, $range, $valueRange, $params);
+$database = new mysqli('db','root','helloworld','web');
+if(mysqli_connect_errno()){
+	printf("Подключение к серверу невозможно, код ошибки: ",mysqli_connect_error());
+	exit;
+}
+else {
+	print("Соединение установлено успешно");
+}
 ?>
 <form action="index.php" method="post">
 	<pre>Заголовок объявления</pre>
@@ -27,7 +20,7 @@ $service->spreadsheets_values->update($id, $range, $valueRange, $params);
 	<pre>Текст объявления:</pre>
 	<br>
 	<label>
-		<textarea name="text" cols="30" rows="10"></textarea>
+		<textarea name="description" cols="30" rows="10"></textarea>
 	</label>
 	<br>
 	<br>
@@ -43,16 +36,23 @@ $service->spreadsheets_values->update($id, $range, $valueRange, $params);
 	<label>
 		<select name="category">
 			<?php
-			$range = "category!A2:A";
-			$response = $service->spreadsheets_values->get($id, $range);
-			$values = $response->getValues();
-			if (count($values) == 0) {
-				echo "No data found.";
-			} else {
-				foreach ($values as $row) {
-					echo "<option value='$row[0]'>$row[0]</option>";
-				}
+			$rows = $database->query('select * from categories');
+			while ($row = $rows->fetch_assoc())
+			{
+				echo '<option>' .  $row['category'] . '</option>';
 			}
+			$rows->close();
+			if (isset($_POST["title"]) && isset($_POST["description"]) && isset($_POST["email"]) && isset($_POST["category"]))
+			{
+				$title = $database->real_escape_string($_POST["title"]);
+				$description = $database->real_escape_string($_POST["description"]);
+				$email = $database->real_escape_string($_POST["email"]);
+				$category = $database->real_escape_string($_POST["category"]);
+				$database->query("
+					INSERT INTO ad (title, description, email, category) VALUES ('{$title}','{$description}' ,'{$email}' ,'{$category}')
+					"
+				) ;
+				}
 			?>
 		</select>
 	</label>
@@ -60,44 +60,31 @@ $service->spreadsheets_values->update($id, $range, $valueRange, $params);
 	<br>
 	<input type="submit" value="Добавить">
 </form>
+<table>
+	<tr>
+		<th>Title</th>
+		<th>Description</th>
+		<th>Email</th>
+		<th>Category</th>
+		<th>Created</th>
+	</tr>
 <?php
-$title = $_POST['title'];
-$text = $_POST['text'];
-$email = $_POST['email'];
-$category = $_POST['category'];
-$range = "data!A2:D";
-$response = $service->spreadsheets_values->get($id, $range);
-$values = $response->getValues();
-$row = count($values) + 1;
-$range = "data!A$row:D$row";
-try {
-	$values = [$title, $text, $email, $category]; //add the values to be appended
-	//execute the request
-	$body = new Google_Service_Sheets_ValueRange([
-		'values' => [$values]
-	]);
-	$params = [
-		'valueInputOption' => "RAW"
-	];
-	$service->spreadsheets_values->append($id, $range, $body, $params);
-} catch (Exception $e) {
-	echo 'Message: ' . $e->getMessage();
-}
-$range = "data!A2:D";
-$response = $service->spreadsheets_values->get($id, $range);
-$values = $response->getValues();
-if (empty($values)) {
-	echo "No data found.";
-} else {
-	echo "<table>";
-	foreach ($values as $row) {
-		echo "<tr>";
-		foreach ($row as $value) {
-			echo "<td>$value</td>";
-		}
-		echo "</tr>";
-	}
-	echo "</table>";
-}
+$rows = $database->query('select * from ad');
+while ($row = $rows->fetch_assoc())
+{
 ?>
+	<tr>
+		<td><?php echo $row['title']; ?></td>
+		<td><?php echo $row['description']; ?></td>
+		<td><?php echo $row['email']; ?></td>
+		<td><?php echo $row['category']; ?></td>
+		<td><?php echo $row['created']; ?></td>
+	</tr>
+	<?php
+}
+$rows->close();
+$database->close();
+?>
+</table>
+<tr>
 </html>

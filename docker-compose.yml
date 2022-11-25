@@ -1,5 +1,21 @@
 version: "3.7"
 services:
+  php:
+    build:
+      context: ""
+      dockerfile: ./Dockerfile
+    volumes:
+      - ./code:/code
+    depends_on:
+      - db
+    links:
+      - db
+  db:
+    image: mysql:8.0
+    ports:
+      - '6603:3306'
+    environment:
+      MYSQL_ROOT_PASSWORD: helloworld
   web:
     image: nginx:latest
     ports:
@@ -9,9 +25,4 @@ services:
       - ./site.conf:/etc/nginx/conf.d/site.conf
     links:
       - php
-  php:
-    image: php:7-fpm
-    volumes:
-      - ./code:/code
-
 
